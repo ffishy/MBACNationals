@@ -8,15 +8,11 @@ using System.Linq;
 
 namespace MBACNationals.ReadModels
 {
-    public class TeamScoreQueries : AzureReadModel,
+    public class TeamScoreQueries : BaseReadModel<TeamScoreQueries>,
         ITeamScoreQueries,
-        ISubscribeTo<TeamGameCompleted>
+        ISubscribeTo<TeamGameCompleted>,
+        ISubscribeTo<ParticipantAssignedToTeam>
     {
-        public TeamScoreQueries(string readModelFilePath)
-        {
-
-        }
-        
         public class Team 
         {
             public Guid Id { get; internal set; }
@@ -31,7 +27,7 @@ namespace MBACNationals.ReadModels
             public int Number { get; internal set; }
             public int Scratch { get; internal set; }
             public int POA { get; internal set; }
-            public bool IsWin { get; internal set; }
+            public string WinLossTie { get; internal set; }
             public int Lane { get; internal set; }
             public string Centre { get; internal set; }
             public string Opponent { get; internal set; }
@@ -59,21 +55,30 @@ namespace MBACNationals.ReadModels
             public int Number { get; set; }
             public int Scratch { get; set; }
             public int POA { get; set; }
-            public bool IsWin { get; set; }
+            public string WinLossTie { get; set; }
             public int Lane { get; set; }
             public string Centre { get; set; }
             public string Opponent { get; set; }
             public int OpponentScratch { get; set; }
             public int OpponentPOA { get; set; }
             public bool IsPOA { get; set; }
-            public decimal Points { get; set; }
-            public decimal OpponentPoints { get; set; }
+            public double Points { get; set; }
+            public double OpponentPoints { get; set; }
         }
 
-
+        private class TSTeamSingle : Entity
+        {
+            public Guid TeamId
+            {
+                get { return Guid.Parse(RowKey); }
+                internal set { RowKey = value.ToString(); PartitionKey = value.ToString(); }
+            }
+            public Guid SingleId { get; set; }
+        }
+        
         public Team GetTeam(Guid id)
         {
-            var matches = Query<TSMatch>(x => x.TeamId == id);
+            var matches = Storage.Query<TSMatch>(x => x.TeamId == id);
             var firstMatch = matches.First();
             var scores = matches.Select(x => new Score
             {
@@ -81,15 +86,15 @@ namespace MBACNationals.ReadModels
                 Number = x.Number,
                 Scratch = x.Scratch,
                 POA = x.POA,
-                IsWin = x.IsWin,
+                WinLossTie = x.WinLossTie,
                 Lane = x.Lane,
                 Centre = x.Centre,
                 Opponent = x.Opponent,
                 OpponentScratch = x.OpponentScratch,
                 OpponentPOA = x.OpponentPOA,
                 IsPOA = x.IsPOA,
-                Points = x.Points,
-                OpponentPoints = x.OpponentPoints,
+                Points = (decimal)x.Points,
+                OpponentPoints = (decimal)x.OpponentPoints,
             }).ToList();
 
             var team = new Team
@@ -102,25 +107,47 @@ namespace MBACNationals.ReadModels
 
             return team;
         }
+
+        public void Handle(ParticipantAssignedToTeam e)
+        {
+            var teamSingle = Storage.Read<TSTeamSingle>(e.TeamId);
+            
+            //First teammember becomes the single
+            if (teamSingle == null)
+            {
+                Storage.Create(e.TeamId, e.TeamId, new TSTeamSingle{ SingleId = e.Id });
+            }
+        }
         
         public void Handle(TeamGameCompleted e)
         {
-            Create(e.TeamId, e.Id, new TSMatch
+            var teamId = e.TeamId;
+
+            //HACK: Old TeamGameCompleted events used teamid instead of bowlerid for POA singles 8'(
+            if ((e.Division.Contains("Teaching") || e.Division.Contains("Senior")) && e.Division.Contains("Single"))
+            {
+                var teamSingle = Storage.Read<TSTeamSingle>(e.TeamId);
+                if (teamSingle != null) teamId = teamSingle.SingleId;
+            }
+
+            Storage.Create(teamId, e.Id, new TSMatch
             {
                 TeamName = e.Division,
                 Province = e.Contingent,
                 Number = e.Number,
                 Scratch = e.Score,
                 POA = e.POA,
-                IsWin = e.Points > 0 || e.TotalPoints > e.OpponentPoints,
+                WinLossTie = e.TotalPoints > e.OpponentPoints
+                    ? "W" : e.TotalPoints < e.OpponentPoints
+                    ? "L" : "T",
                 Lane = e.Lane,
                 Centre = e.Centre,
                 Opponent = e.Opponent,
                 OpponentScratch = e.OpponentScore,
                 OpponentPOA = e.OpponentPOA,
-                OpponentPoints = e.OpponentPoints,
+                OpponentPoints = (double)e.OpponentPoints,
                 IsPOA = e.IsPOA,
-                Points = e.TotalPoints
+                Points = (double)e.TotalPoints
             });
         }
     }

@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace MBACNationals.ReadModels
 {
-    public class ContingentPracticePlanQueries : AzureReadModel,
+    public class ContingentPracticePlanQueries : BaseReadModel<ContingentPracticePlanQueries>,
         IContingentPracticePlanQueries,
         ISubscribeTo<TournamentCreated>,
         ISubscribeTo<ContingentCreated>,
@@ -16,11 +16,6 @@ namespace MBACNationals.ReadModels
         ISubscribeTo<TeamRemoved>,
         ISubscribeTo<TeamPracticeRescheduled>
     {
-        public ContingentPracticePlanQueries(string readModelFilePath)
-        {
-
-        }
-
         public class ContingentPracticePlan
         {
             public Guid Id { get; internal set; }
@@ -74,17 +69,47 @@ namespace MBACNationals.ReadModels
             public string Province { get; set; }
         }
 
+        public List<ContingentPracticePlan> GetAllSchedules(string year)
+        {
+            var tournament = Storage.Query<TSTournament>(x => x.Year.Equals(year, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            var contingents = Storage.Query<TSContingent>(x => x.TournamentId == tournament.Id);
+
+            var contingentPracticePlans = new List<ContingentPracticePlan>();
+            foreach (var contingent in contingents)
+            {
+                var teams = Storage.Query<TSTeam>(x => x.ContingentId == contingent.Id)
+                   .Select(x => new Team
+                   {
+                       Id = x.Id,
+                       Name = x.Name,
+                       PracticeLocation = x.PracticeLocation,
+                       PracticeTime = x.PracticeTime
+                   })
+                   .ToList();
+
+                contingentPracticePlans.Add(new ContingentPracticePlan
+                {
+                    Id = contingent.Id,
+                    Province = contingent.Province,
+                    Teams = teams,
+                });
+            }
+
+            return contingentPracticePlans;
+        }
+
         public ContingentPracticePlan GetSchedule(string year, string province)
         {
-            var tournament = Query<TSTournament>(x => x.Year.Equals(year, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            var tournament = Storage.Query<TSTournament>(x => x.Year.Equals(year, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
 
-            var contingent = Query<TSContingent>(x =>
+            var contingent = Storage.Query<TSContingent>(x =>
                 x.TournamentId == tournament.Id
                 && x.Province.Equals(province, StringComparison.OrdinalIgnoreCase))
                 .FirstOrDefault();
 
-            var teams = Query<TSTeam>(x => x.ContingentId == contingent.Id)
-                .Select(x => new Team {
+            var teams = Storage.Query<TSTeam>(x => x.ContingentId == contingent.Id)
+                .Select(x => new Team
+                {
                     Id = x.Id,
                     Name = x.Name,
                     PracticeLocation = x.PracticeLocation,
@@ -102,10 +127,10 @@ namespace MBACNationals.ReadModels
 
         public void Handle(TournamentCreated e)
         {
-            Create(e.Id, e.Id, new TSTournament { Year = e.Year, Id = e.Id });
+            Storage.Create(e.Id, e.Id, new TSTournament { Year = e.Year, Id = e.Id });
 
             //HACK: Track current tournament
-            Create(Guid.Empty, Guid.Empty, new TSTournament { Year = e.Year, Id = e.Id });
+            Storage.Create(Guid.Empty, Guid.Empty, new TSTournament { Year = e.Year, Id = e.Id });
         }
 
         public void Handle(ContingentCreated e)
@@ -115,7 +140,7 @@ namespace MBACNationals.ReadModels
 
             var tournamentId = GetCurrentTournamentId();
 
-            Create(tournamentId, e.Id, new TSContingent
+            Storage.Create(tournamentId, e.Id, new TSContingent
             {
                 Province = e.Province
             });
@@ -123,18 +148,18 @@ namespace MBACNationals.ReadModels
 
         public void Handle(ContingentAssignedToTournament e)
         {
-            var contingent = Read<TSContingent>(Guid.Empty, e.Id);
+            var contingent = Storage.Read<TSContingent>(Guid.Empty, e.Id);
             if (contingent != null)
             {
-                Delete<TSContingent>(Guid.Empty, e.Id);
+                Storage.Delete<TSContingent>(Guid.Empty, e.Id);
                 contingent.TournamentId = e.TournamentId;
-                Create(e.TournamentId, e.Id, contingent);
+                Storage.Create(e.TournamentId, e.Id, contingent);
             }
         }
 
         public void Handle(TeamCreated e)
         {
-            Create(e.Id, e.TeamId, new TSTeam
+            Storage.Create(e.Id, e.TeamId, new TSTeam
             {
                 Name = e.Name
             });
@@ -142,12 +167,12 @@ namespace MBACNationals.ReadModels
 
         public void Handle(TeamRemoved e)
         {
-            Delete<TSTeam>(e.Id, e.TeamId);
+            Storage.Delete<TSTeam>(e.Id, e.TeamId);
         }
 
         public void Handle(TeamPracticeRescheduled e)
         {
-            Update<TSTeam>(e.Id, e.TeamId, team =>
+            Storage.Update<TSTeam>(e.Id, e.TeamId, team =>
             {
                 team.PracticeLocation = e.PracticeLocation;
                 team.PracticeTime = e.PracticeTime;
@@ -156,7 +181,7 @@ namespace MBACNationals.ReadModels
 
         private Guid GetCurrentTournamentId()
         {
-            var tournament = Read<TSTournament>(Guid.Empty, Guid.Empty)
+            var tournament = Storage.Read<TSTournament>(Guid.Empty, Guid.Empty)
                 ?? new TSTournament { Id = Guid.Empty };
             return tournament.Id;
         }

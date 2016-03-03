@@ -4,51 +4,102 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>MBAC Nationals :: @ViewBag.Title</title>
+    <title>MBAC Nationals :: @ViewBag.Year</title>
     <base href="/Setup" />
     @Styles.Render("~/Content/css")
     @Scripts.Render("~/bundles/modernizr")
     @Styles.Render("~/Content/bootstrap/base")
     @Styles.Render("~/Content/bootstrap/theme")
+    <script type="text/javascript">
+        var appInsights=window.appInsights||function(config){
+            function r(config){t[config]=function(){var i=arguments;t.queue.push(function(){t[config].apply(t,i)})}}var t={config:config},u=document,e=window,o="script",s=u.createElement(o),i,f;for(s.src=config.url||"//az416426.vo.msecnd.net/scripts/a/ai.0.js",u.getElementsByTagName(o)[0].parentNode.appendChild(s),t.cookie=u.cookie,t.queue=[],i=["Event","Exception","Metric","PageView","Trace"];i.length;)r("track"+i.pop());return r("setAuthenticatedUserContext"),r("clearAuthenticatedUserContext"),config.disableExceptionTracking||(i="onerror",r("_"+i),f=e[i],e[i]=function(config,r,u,e,o){var s=f&&f(config,r,u,e,o);return s!==!0&&t["_"+i](config,r,u,e,o),s}),t
+        }({
+            instrumentationKey:"96e9ad2a-74a5-4410-91f6-cd301f8c67e6"
+        });
+        
+        window.appInsights=appInsights;
+        appInsights.trackPageView();
+    </script>
 </head>
-<body>
-    <div class="container" data-ng-app="app">
-        <div class="row">
-            <div class="col-md-3">
-                <div class="row">
-                    <a href="~/"><img src="~/Content/Images/mbac_logo.png" /></a>
-                </div>
-                <div class="row">
-                    @Html.Partial("_LoginPartial")
-                </div>
+<body style="margin-top: 50px;">
+    <nav class="navbar navbar-default navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="~/Setup"><img src="~/Content/Images/mbac_logo.png" height="50" /></a>
             </div>
-            <div class="col-md-9">
-                <div class="row">
-                    @* TODO: Move into proper nav bootstrap elements *@
-                    @Html.Partial("_AdminMenuPartial")
-                </div>
-                <div class="row">
-                    <img src="~/Content/Images/header_image.jpg" style="width:100%; top: -5px; position:relative;" />
-                </div>
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    @if (!string.IsNullOrWhiteSpace(ViewBag.Year) && !string.IsNullOrWhiteSpace(ViewBag.Province))
+                    {
+                        <li><a href="~/Contingent/Edit/@ViewBag.Year/@ViewBag.Province">Contingent</a></li>
+                        <li><a href="~/Contingent/Reservation/@ViewBag.Year/@ViewBag.Province">Reservations</a></li>
+                        <li><a href="~/Contingent/Arrivals/@ViewBag.Year/@ViewBag.Province">Travel</a></li>
+                        <li><a href="~/Contingent/Practice/@ViewBag.Year/@ViewBag.Province">Practice</a></li>
+                        <li><a href="~/Contingent/Profiles/@ViewBag.Year/@ViewBag.Province">Profiles</a></li>
+                    }
+                    else
+                    {
+                        <li>@Html.ActionLink("Home", "Index", "Home")</li>
+                    }
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    @if ((User.IsInRole("Admin") || User.IsInRole("Host")) && !string.IsNullOrWhiteSpace(ViewBag.Year))
+                    {
+                        <li>
+                            @Html.ActionLink("Sponsors", "Edit", "Sponsors", new { year = ViewBag.Year }, null)
+                        </li>
+                        <li>
+                            @Html.ActionLink("News", "Edit", "News", new { year = ViewBag.Year }, null)
+                        </li>
+                        <li>
+                            @Html.ActionLink("Reports", "Reports", "Admin", new { year = ViewBag.Year }, null)
+                        </li>
+                    }
+                    @if ((User.IsInRole("Admin") || User.IsInRole("Host") || User.IsInRole("ScoreEntry")) && !string.IsNullOrWhiteSpace(ViewBag.Year))
+                    {
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Score Entry <span class="caret"></span></a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li>
+                                    @Html.ActionLink("Tournament Scores", "Entry", "Scores", new { year = ViewBag.Year }, null)
+                                </li>
+                                <li>
+                                    @Html.ActionLink("Stepladder", "Stepladder", "Scores", new { year = ViewBag.Year }, null)
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                    @if (User.Identity.Name.Equals("Chad", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Admin <span class="caret"></span></a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li>
+                                    @Html.ActionLink("Rebuild Read Models", "Rebuild", "Admin")
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                    @Html.Partial("_LoginPartial")
+                </ul>
             </div>
         </div>
+    </nav>
+
+    <div class="container" data-ng-app="app">
 
         @RenderBody()
 
-        <!-- Site footer -->
         <div class="footer">
-            <p>Site Design &copy; 2013-@System.DateTime.Now.Year Charlene McIvor and Chad Hurd</p>
-            @if (User.IsInRole("Admin"))
-            {
-                @Html.ActionLink("Reports", "Reports", "Admin")
-                @Html.ActionLink("Score Entry", "Entry", "Scores", new { year = ViewBag.Year }, null)
-            }
-            @if (User.Identity.Name.Equals("Chad", StringComparison.OrdinalIgnoreCase))
-            {
-                @Html.ActionLink("Rebuild Read Models", "Rebuild", "Admin")
-            }
+            <p class="pull-right"><a href="/" target="_blank">Open Public Website</a></p>            
+            <p>Site Design &copy; 2013-@System.DateTime.Now.Year Charlene McIvor and Chad Hurd</p>             
         </div>
-
     </div>
 
     @Scripts.Render("~/bundles/jquery")

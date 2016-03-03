@@ -7,17 +7,12 @@ using System.Linq;
 
 namespace MBACNationals.ReadModels
 {
-    public class ParticipantScoreQueries : AzureReadModel,
+    public class ParticipantScoreQueries : BaseReadModel<ParticipantScoreQueries>,
         IParticipantScoreQueries,
         ISubscribeTo<ParticipantCreated>,
         ISubscribeTo<ParticipantAverageChanged>,
         ISubscribeTo<ParticipantGameCompleted>
     {
-        public ParticipantScoreQueries(string readModelFilePath)
-        {
-
-        }
-
         public class Participant
         {
             public Guid Id { get; internal set; }
@@ -28,7 +23,7 @@ namespace MBACNationals.ReadModels
             public int NationalGames { get; internal set; }
             public int NationalTotal { get; internal set; }
             public int NationalAverage { get; internal set; }
-            public int NationalWins { get; internal set; }
+            public decimal NationalWins { get; internal set; }
             public List<Score> Scores { get; internal set; }
             public int HighScore { get; internal set; }
             public int HighPOA { get; internal set; }
@@ -40,7 +35,7 @@ namespace MBACNationals.ReadModels
             public int Number { get; internal set; }
             public int Scratch { get; internal set; }
             public int POA { get; internal set; }
-            public bool IsWin { get; internal set; }
+            public string WinLossTie { get; internal set; }
             public int Lane { get; internal set; }
             public string Centre { get; internal set; }
             public string OpponentName { get; internal set; }
@@ -64,7 +59,7 @@ namespace MBACNationals.ReadModels
             public int NationalGames { get; set; }
             public int NationalTotal { get; set; }
             public int NationalAverage { get; set; }
-            public int NationalWins { get; set; }
+            public double NationalWins { get; set; }
             public int HighScore { get; set; }
             public int HighPOA { get; set; }
         }
@@ -84,7 +79,7 @@ namespace MBACNationals.ReadModels
             public int Number { get; set; }
             public int Scratch { get; set; }
             public int POA { get; set; }
-            public bool IsWin { get; set; }
+            public string WinLossTie { get; set; }
             public int Lane { get; set; }
             public string Centre { get; set; }
             public string OpponentName { get; set; }
@@ -96,14 +91,14 @@ namespace MBACNationals.ReadModels
 
         public ParticipantScoreQueries.Participant GetParticipant(Guid id)
         {
-            var scores = Query<TSGame>(x => x.ParticipantId == id)
+            var scores = Storage.Query<TSGame>(x => x.ParticipantId == id)
                 .Select(x => new Score
                 {
                     MatchId = x.Id.ToString(),
                     Number = x.Number,
                     Scratch = x.Scratch,
                     POA = x.POA,
-                    IsWin = x.IsWin,
+                    WinLossTie = x.WinLossTie,
                     Lane = x.Lane,
                     Centre = x.Centre,
                     OpponentProvince = x.OpponentProvince,
@@ -113,7 +108,7 @@ namespace MBACNationals.ReadModels
                     IsPOA = x.IsPOA
                 }).ToList();
 
-            var tsp = Read<TSParticipant>(id, id);
+            var tsp = Storage.Read<TSParticipant>(id, id);
             return new Participant
             {
                 Id = tsp.Id,
@@ -124,7 +119,7 @@ namespace MBACNationals.ReadModels
                 NationalGames = tsp.NationalGames,
                 NationalTotal = tsp.NationalTotal,
                 NationalAverage = tsp.NationalAverage,
-                NationalWins = tsp.NationalWins,
+                NationalWins = (decimal)tsp.NationalWins,
                 Scores = scores,
                 HighScore = scores.Max(x => x.Scratch),
                 HighPOA = scores.Max(x => x.POA),
@@ -133,7 +128,7 @@ namespace MBACNationals.ReadModels
 
         public void Handle(ParticipantCreated e)
         {
-            Create(e.Id, e.Id, new TSParticipant
+            Storage.Create(e.Id, e.Id, new TSParticipant
             {
                 Name = e.Name
             });
@@ -141,22 +136,24 @@ namespace MBACNationals.ReadModels
 
         public void Handle(ParticipantAverageChanged e)
         {
-            Update<TSParticipant>(e.Id, e.Id, x => x.Average = e.Average);
+            Storage.Update<TSParticipant>(e.Id, e.Id, x => x.Average = e.Average);
         }
 
         public void Handle(ParticipantGameCompleted e)
         {
-            var game = Read<TSGame>(e.ParticipantId, e.Id);
+            var game = Storage.Read<TSGame>(e.ParticipantId, e.Id);
             if (game == null)
             {
-                Create<TSGame>(e.ParticipantId, e.Id, new TSGame
+                Storage.Create<TSGame>(e.ParticipantId, e.Id, new TSGame
                    {
                        Id = e.Id,
                        ParticipantId = e.ParticipantId,
                        Number = e.Number,
                        Scratch = e.Score,
                        POA = e.POA,
-                       IsWin = e.Points > 0,
+                       WinLossTie = e.IsPOA 
+                        ? (e.POA > e.OpponentPOA ? "W" : e.POA < e.OpponentPOA ? "L" : "T")
+                        : (e.Score > e.OpponentScore ? "W" : e.Score < e.OpponentScore ? "L" : "T"),
                        Lane = e.Lane,
                        Centre = e.Centre,
                        OpponentProvince = e.Opponent,
@@ -166,7 +163,7 @@ namespace MBACNationals.ReadModels
                        IsPOA = e.IsPOA
                    });
 
-                Update<TSParticipant>(e.ParticipantId, e.ParticipantId, x =>
+                Storage.Update<TSParticipant>(e.ParticipantId, e.ParticipantId, x =>
                 {
                     x.Name = e.Name;
                     x.Division = e.Division;
@@ -174,17 +171,19 @@ namespace MBACNationals.ReadModels
                     x.NationalGames += 1;
                     x.NationalTotal += e.Score;
                     x.NationalAverage = x.NationalTotal / x.NationalGames;
-                    x.NationalWins += (e.Points > 0 ? 1 : 0);
+                    x.NationalWins += (double)(e.Points > 0M ? ( e.Points % 1M == 0M ? 1M : .5M) : 0M);
                 });
             }
             else
             {
-                Update<TSParticipant>(e.ParticipantId, e.ParticipantId, x =>
+                Storage.Update<TSParticipant>(e.ParticipantId, e.ParticipantId, x =>
                 {
                     x.Name = e.Name;
                     x.NationalTotal = x.NationalTotal - game.Scratch + e.Score;
                     x.NationalAverage = x.NationalTotal / x.NationalGames;
-                    x.NationalWins = x.NationalWins - (game.IsWin ? 1 : 0) + (e.Points > 0 ? 1 : 0);
+                    x.NationalWins = x.NationalWins
+                        - (double)(game.WinLossTie == "W" ? 1M : game.WinLossTie == "T" ? .5M : 0M)
+                        + (double)(e.Points > 0 ? (e.Points % 1M == 0M ? 1M : .5M) : 0M);
                 });
             }
         }

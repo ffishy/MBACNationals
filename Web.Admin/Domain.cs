@@ -16,8 +16,6 @@ namespace WebFrontend
 {
     public static class Domain
     {
-        public static string ReadModelFolder { get; private set; }
-
         public static MessageDispatcher Dispatcher;
         public static ICommandQueries CommandQueries;
         public static IParticipantQueries ParticipantQueries;
@@ -33,59 +31,61 @@ namespace WebFrontend
         public static IParticipantScoreQueries ParticipantScoreQueries;
         public static ITeamScoreQueries TeamScoreQueries;
         public static ITournamentQueries TournamentQueries;
+        public static IStepladderQueries StepladderQueries;
 
         public static void Setup()
-        {
-            ReadModelFolder = HttpContext.Current.Server.MapPath("~/App_Data/ReadModels/");
-            
+        {            
             Dispatcher = new MessageDispatcher(new SqlEventStore(Properties.Settings.Default.DefaultConnection));
 
-            CommandQueries = new CommandQueries(ReadModelFolder);
+            CommandQueries = new CommandQueries();
             Dispatcher.ScanInstance(CommandQueries);
 
             Dispatcher.ScanInstance(new ParticipantCommandHandlers(CommandQueries));
             Dispatcher.ScanInstance(new ContingentCommandHandlers(CommandQueries));
-            Dispatcher.ScanInstance(new ScoresCommandHandlers(Dispatcher)); //TODO: Change to CommandQueries
+            Dispatcher.ScanInstance(new ScoresCommandHandlers(CommandQueries, Dispatcher)); //TODO: Refactor Dispatcher out of Handler
             Dispatcher.ScanInstance(new TournamentCommandHandlers(CommandQueries));
 
-            ParticipantQueries = new ParticipantQueries(ReadModelFolder);
+            ParticipantQueries = new ParticipantQueries();
             Dispatcher.ScanInstance(ParticipantQueries);
 
-            ParticipantProfileQueries = new ParticipantProfileQueries(ReadModelFolder);
+            ParticipantProfileQueries = new ParticipantProfileQueries();
             Dispatcher.ScanInstance(ParticipantProfileQueries);
 
-            ContingentViewQueries = new ContingentViewQueries(ReadModelFolder);
+            ContingentViewQueries = new ContingentViewQueries();
             Dispatcher.ScanInstance(ContingentViewQueries);
 
-            ContingentTravelPlanQueries = new ContingentTravelPlanQueries(ReadModelFolder);
+            ContingentTravelPlanQueries = new ContingentTravelPlanQueries();
             Dispatcher.ScanInstance(ContingentTravelPlanQueries);
 
-            ContingentPracticePlanQueries = new ContingentPracticePlanQueries(ReadModelFolder);
+            ContingentPracticePlanQueries = new ContingentPracticePlanQueries();
             Dispatcher.ScanInstance(ContingentPracticePlanQueries);
 
-            ReservationQueries = new ReservationQueries(ReadModelFolder);
+            ReservationQueries = new ReservationQueries();
             Dispatcher.ScanInstance(ReservationQueries);
 
-            ScheduleQueries = new ScheduleQueries(ReadModelFolder);
+            ScheduleQueries = new ScheduleQueries();
             Dispatcher.ScanInstance(ScheduleQueries);
 
-            MatchQueries = new MatchQueries(ReadModelFolder);
+            MatchQueries = new MatchQueries();
             Dispatcher.ScanInstance(MatchQueries);
 
-            StandingQueries = new StandingQueries(ReadModelFolder);
+            StandingQueries = new StandingQueries();
             Dispatcher.ScanInstance(StandingQueries);
 
-            HighScoreQueries = new HighScoreQueries(ReadModelFolder);
+            HighScoreQueries = new HighScoreQueries();
             Dispatcher.ScanInstance(HighScoreQueries);
 
-            ParticipantScoreQueries = new ParticipantScoreQueries(ReadModelFolder);
+            ParticipantScoreQueries = new ParticipantScoreQueries();
             Dispatcher.ScanInstance(ParticipantScoreQueries);
 
-            TeamScoreQueries = new TeamScoreQueries(ReadModelFolder);
+            TeamScoreQueries = new TeamScoreQueries();
             Dispatcher.ScanInstance(TeamScoreQueries);
 
-            TournamentQueries = new TournamentQueries(ReadModelFolder);
+            TournamentQueries = new TournamentQueries();
             Dispatcher.ScanInstance(TournamentQueries);
+
+            StepladderQueries = new StepladderQueries();
+            Dispatcher.ScanInstance(StepladderQueries);
         }
 
         public static void RebuildReadModel(string readmodel)
@@ -97,12 +97,14 @@ namespace WebFrontend
             var tableClient = storageAccount.CreateCloudTableClient();
 
             var azureTableHelper = new AzureTableHelper.AzureTableHelper(tableClient);
-            azureTableHelper.DeleteTable(readmodel.ToLower());
+            var originalTableName = azureTableHelper.GetTableNameFor(readmodel.ToLower());
             azureTableHelper.IterateTableNameFor(readmodel.ToLower());
 
             Dispatcher.RepublishEvents(readmodel);
 
             GoOnline();
+
+            azureTableHelper.DeleteTable(originalTableName);
         }
 
         public static void RebuildSchedule()

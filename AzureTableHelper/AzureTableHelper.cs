@@ -1,20 +1,23 @@
+using Microsoft.WindowsAzure.Storage.Table;
+using MoreLinq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Microsoft.WindowsAzure.Storage.Table;
-using MoreLinq;
 
 namespace AzureTableHelper
 {
     public class AzureTableHelper
     {
-        private readonly Dictionary<string, string> _cachedTableNames = new Dictionary<string, string>();
+        private static Dictionary<string, string> _cachedTableNames = new Dictionary<string, string>();
+
         private readonly CloudTableClient _tableClient;
 
         public AzureTableHelper(CloudTableClient tableClient)
         {
             _tableClient = tableClient;
+
+            GetTableNames();
         }
 
         public Dictionary<string, string> GetTableNames()
@@ -22,8 +25,8 @@ namespace AzureTableHelper
             var nameTable = GetNameTable();
             var tableResults = nameTable.ExecuteQuery(new TableQuery<TableName>());
 
-            //Update cached values with those that are missing
-            foreach (var tableName in tableResults.Where(tableName => !_cachedTableNames.ContainsKey(tableName.RowKey)))
+            _cachedTableNames = new Dictionary<string, string>();
+            foreach (var tableName in tableResults)
             {
                 _cachedTableNames.Add(tableName.RowKey, tableName.CurrentTableName);
             }
@@ -64,10 +67,7 @@ namespace AzureTableHelper
         public CloudTable GetTableFor(string typeName)
         {
             var currentTableName = GetTableNameFor(typeName);
-            var currentTable = _tableClient.GetTableReference(currentTableName);
-            currentTable.CreateIfNotExists();
-
-            return currentTable;
+            return _tableClient.GetTableReference(currentTableName);
         }
 
         public string GetTableNameFor(string typeName)
@@ -98,7 +98,6 @@ namespace AzureTableHelper
                     };
                     nameTable.Execute(TableOperation.Insert(newTable));
                 }
-                _cachedTableNames.Add(typeName, currentTableName);
             }
 
             return currentTableName;
@@ -143,6 +142,10 @@ namespace AzureTableHelper
             entity.CurrentTableName = GetNextTableNameFor(typeName);
             nameTable.Execute(TableOperation.InsertOrReplace(entity));
 
+            _cachedTableNames[typeName] = entity.CurrentTableName;
+            var table = GetTableFor(typeName);
+            table.CreateIfNotExists();
+            
             return entity.CurrentTableName;
         }
 
@@ -189,11 +192,12 @@ namespace AzureTableHelper
 
         private CloudTable GetNameTable()
         {
+            //You need to install Azure Storage Emulator from: https://azure.microsoft.com/en-us/downloads/
             var nameTable = _tableClient.GetTableReference("zzzTableNames");
             nameTable.CreateIfNotExists();
             return nameTable;
         }
-        
+
         public class TableName : TableEntity
         {
             public TableName() { }

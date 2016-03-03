@@ -7,16 +7,13 @@ using System.Linq;
 
 namespace MBACNationals.ReadModels
 {
-    public class CommandQueries : AzureReadModel,
+    public class CommandQueries : BaseReadModel<CommandQueries>,
         ICommandQueries,
         ISubscribeTo<TournamentCreated>,
-        ISubscribeTo<ParticipantCreated>
+        ISubscribeTo<ParticipantCreated>,
+        ISubscribeTo<ParticipantGenderReassigned>,
+        ISubscribeTo<ParticipantRenamed>
     {
-        public CommandQueries(string readModelFilePath)
-        {
-
-        }
-
         public class Tournament
         {
             public virtual Guid Id { get; set; }
@@ -30,6 +27,7 @@ namespace MBACNationals.ReadModels
             public virtual Guid TeamId { get; set; }
             public virtual string Name { get; set; }
             public virtual int Average { get; set; }
+            public virtual string Gender { get; set; }
         }
 
         private class TSTournament : Entity
@@ -43,11 +41,12 @@ namespace MBACNationals.ReadModels
             public virtual Guid TeamId { get; set; }
             public virtual string Name { get; set; }
             public virtual int Average { get; set; }
+            public virtual string Gender { get; set; }
         }
 
         public List<Tournament> GetTournaments()
         {
-            return Query<TSTournament>()
+            return Storage.Query<TSTournament>()
                 .Select(x => new Tournament
                 {
                     Id = Guid.Parse(x.RowKey),
@@ -58,21 +57,22 @@ namespace MBACNationals.ReadModels
 
         public Participant GetParticipant(Guid id)
         {
-            var participant = Read<TSParticipant>(Guid.Empty, id);
+            var participant = Storage.Read<TSParticipant>(Guid.Empty, id);
             return new Participant 
             {
                 Id = Guid.Parse(participant.RowKey),
                 TeamId = participant.TeamId,
                 ContingentId = participant.ContingentId,
                 Name = participant.Name,
-                Average = participant.Average
+                Average = participant.Average,
+                Gender = participant.Gender
             };
                 
         }
         
         public void Handle(TournamentCreated e)
         {
-            Create(Guid.Empty, e.Id, new TSTournament
+            Storage.Create(Guid.Empty, e.Id, new TSTournament
             {
                 Year = e.Year
             });
@@ -80,10 +80,21 @@ namespace MBACNationals.ReadModels
 
         public void Handle(ParticipantCreated e)
         {
-            Create(Guid.Empty, e.Id, new TSParticipant
+            Storage.Create(Guid.Empty, e.Id, new TSParticipant
             {
-                Name = e.Name
+                Name = e.Name,
+                Gender = e.Gender
             });
+        }
+
+        public void Handle(ParticipantGenderReassigned e)
+        {
+            Storage.Update<TSParticipant>(Guid.Empty, e.Id, x => x.Gender = e.Gender);
+        }
+
+        public void Handle(ParticipantRenamed e)
+        {
+            Storage.Update<TSParticipant>(Guid.Empty, e.Id, x => x.Name = e.Name);
         }
     }
 }

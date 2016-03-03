@@ -14,6 +14,8 @@ namespace MBACNationals.Participant
         IApplyEvent<ParticipantGenderReassigned>,
         IApplyEvent<ParticipantDelegateStatusGranted>,
         IApplyEvent<ParticipantDelegateStatusRevoked>,
+        IApplyEvent<ParticipantManagerStatusGranted>,
+        IApplyEvent<ParticipantManagerStatusRevoked>,
         IApplyEvent<ParticipantYearsQualifyingChanged>,
         IApplyEvent<ParticipantAverageChanged>,
         IApplyEvent<ParticipantAssignedToRoom>,
@@ -21,13 +23,15 @@ namespace MBACNationals.Participant
         IApplyEvent<ParticipantGuestPackageChanged>,
         IApplyEvent<ParticipantShirtSizeChanged>,
         IApplyEvent<ParticipantProfileChanged>,
-        IApplyEvent<ParticipantReplacedWithAlternate>
+        IApplyEvent<ParticipantReplacedWithAlternate>,
+        IApplyEvent<ParticipantBirthdayChanged>
     {
         public Guid TeamId { get; private set; }
         public Guid ContingentId { get; private set; }
         public string Name { get; private set; }
         public string Gender { get; private set; }
         public bool IsDelegate { get; private set; }
+        public bool IsManager { get; private set; }
         public bool IsGuest { get; private set; }
         public bool IsCoach { get; private set; }
         public bool IsAlternate { get; private set; }
@@ -43,6 +47,7 @@ namespace MBACNationals.Participant
         public string ShirtSize { get; private set; }
         public ProfileDetails Profile { get; private set; }
         public Guid ReplacedBy { get; private set; }
+        public DateTime? Birthday { get; private set; }
 
         public class PackageInformation
         {
@@ -50,6 +55,10 @@ namespace MBACNationals.Participant
             public bool ManitobaDance { get; set; }
             public bool FinalBanquet { get; set; }
             public bool Transportation { get; set; }
+            public bool Option1 { get; set; }
+            public bool Option2 { get; set; }
+            public bool Option3 { get; set; }
+            public bool Option4 { get; set; }
         }
 
         public class ProfileDetails
@@ -82,6 +91,7 @@ namespace MBACNationals.Participant
             IsDelegate = e.IsDelegate;
             IsGuest = e.IsGuest;
             YearsQualifying = e.YearsQualifying;
+            Birthday = e.Birthday;
             Package = new PackageInformation();
             Profile = new ProfileDetails();
         }
@@ -128,6 +138,16 @@ namespace MBACNationals.Participant
             IsDelegate = false;
         }
 
+        public void Apply(ParticipantManagerStatusGranted e)
+        {
+            IsManager = true;
+        }
+
+        public void Apply(ParticipantManagerStatusRevoked e)
+        {
+            IsManager = false;
+        }
+
         public void Apply(ParticipantYearsQualifyingChanged e)
         {
             YearsQualifying = e.YearsQualifying;
@@ -163,6 +183,10 @@ namespace MBACNationals.Participant
             Package.ManitobaDance = e.ManitobaDance;
             Package.FinalBanquet = e.FinalBanquet;
             Package.Transportation = e.Transportation;
+            Package.Option1 = e.Option1;
+            Package.Option2 = e.Option2;
+            Package.Option3 = e.Option3;
+            Package.Option4 = e.Option4;
         }
 
         public void Apply(ParticipantShirtSizeChanged e)
@@ -196,6 +220,11 @@ namespace MBACNationals.Participant
         public void Apply(ParticipantReplacedWithAlternate e)
         {
             ReplacedBy = e.AlternateId;
+        }
+
+        public void Apply(ParticipantBirthdayChanged e)
+        {
+            Birthday = e.Birthday;
         }
     }
 }

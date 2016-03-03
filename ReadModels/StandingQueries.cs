@@ -1,5 +1,6 @@
 ﻿using Edument.CQRS;
 using Events.Contingent;
+using Events.Participant;
 using Events.Scores;
 using Events.Tournament;
 using System;
@@ -8,20 +9,16 @@ using System.Linq;
 
 namespace MBACNationals.ReadModels
 {
-    public class StandingQueries : AzureReadModel,
+    public class StandingQueries : BaseReadModel<StandingQueries>,
         IStandingQueries,
         ISubscribeTo<TournamentCreated>,
         ISubscribeTo<ContingentCreated>,
         ISubscribeTo<ContingentAssignedToTournament>,
         ISubscribeTo<TeamCreated>,
         ISubscribeTo<TeamRemoved>,
+        ISubscribeTo<ParticipantAssignedToTeam>,
         ISubscribeTo<TeamGameCompleted>
     {
-        public StandingQueries(string readModelFilePath)
-        {
-
-        }
-
         public class Team
         {
             public Guid Id { get; internal set; }
@@ -96,10 +93,20 @@ namespace MBACNationals.ReadModels
             }
             public string Name { get; set; }
         }
+        
+        private class TSTeamSingle : Entity
+        {
+            public Guid TeamId
+            {
+                get { return Guid.Parse(RowKey); }
+                internal set { RowKey = value.ToString(); PartitionKey = value.ToString(); }
+            }
+            public Guid SingleId { get; set; }
+        }
 
         public List<Team> GetDivision(Guid tournamentId, string division)
         {
-            var matches = Query<TSMatch>(x =>
+            var matches = Storage.Query<TSMatch>(x =>
                 x.TournamentId == tournamentId
                 && x.Division.Equals(division, StringComparison.OrdinalIgnoreCase));
 
@@ -131,12 +138,21 @@ namespace MBACNationals.ReadModels
                     }).ToList();
             }
 
+            foreach (var single in Storage.Query<TSTeamSingle>())
+            {
+                var team = teams.FirstOrDefault(t => t.TeamId == single.TeamId.ToString());
+                if (team == null)
+                    continue;
+
+                team.TeamId = single.SingleId.ToString();
+            }
+
             return teams;
         }
 
         public void Handle(TournamentCreated e)
         {
-            Create(e.Id, e.Id, new TSTournament
+            Storage.Create(e.Id, e.Id, new TSTournament
             {
                 Year = e.Year
             });
@@ -144,7 +160,7 @@ namespace MBACNationals.ReadModels
 
         public void Handle(ContingentCreated e)
         {
-            Create(e.Id, e.Id, new TSContingent
+            Storage.Create(e.Id, e.Id, new TSContingent
             {
                 Province = e.Province,
             });
@@ -152,7 +168,7 @@ namespace MBACNationals.ReadModels
 
         public void Handle(ContingentAssignedToTournament e)
         {
-            Update<TSContingent>(e.Id, e.Id, contingent =>
+            Storage.Update<TSContingent>(e.Id, e.Id, contingent =>
             {
                 contingent.TournamentId = e.TournamentId;
             });
@@ -160,7 +176,7 @@ namespace MBACNationals.ReadModels
 
         public void Handle(TeamCreated e)
         {
-            Create(e.Id, e.TeamId, new TSTeam
+            Storage.Create(e.Id, e.TeamId, new TSTeam
             {
                 Name = e.Name,
             });
@@ -168,14 +184,46 @@ namespace MBACNationals.ReadModels
 
         public void Handle(TeamRemoved e)
         {
-            Delete<TSTeam>(e.Id, e.TeamId);
+            Storage.Delete<TSTeam>(e.Id, e.TeamId);
+        }
+
+        public void Handle(ParticipantAssignedToTeam e)
+        {
+            var teamSingle = Storage.Read<TSTeamSingle>(e.TeamId);
+            
+            //First teammember becomes the single
+            if (teamSingle == null)
+            {
+                Storage.Create(e.TeamId, e.TeamId, new TSTeamSingle{ SingleId = e.Id });
+            }
         }
 
         public void Handle(TeamGameCompleted e)
         {
-            var team = Read<TSTeam>(e.TeamId);
-            var contingent = Read<TSContingent>(team.ContingentId, team.ContingentId);
-            Create(e.TeamId, e.Id, new TSMatch
+            var team = Storage.Read<TSTeam>(e.TeamId);
+            var contingent = Storage.Read<TSContingent>(team.ContingentId, team.ContingentId);
+            
+            Guid partitionKey;
+            var isPOASingles = e.IsPOA && e.Division.Contains("Single");
+            if (isPOASingles)
+            {   
+                //Does the team have a translation for the single yet?
+                var existingTranslation = Storage.Read<TSTeamSingle>(e.TeamId, e.TeamId);
+                //if (existingTranslation == null)
+                //{//No, create one
+                //    existingTranslation = new TSTeamSingle
+                //    { 
+                //        TeamId = e.TeamId,
+                //        SingleTeamId = Guid.NewGuid() 
+                //    };
+                //    Storage.Create(e.TeamId, e.TeamId, existingTranslation);
+                //}
+                partitionKey = existingTranslation.SingleId;
+            } else {
+                partitionKey = e.TeamId;
+            }
+
+            Storage.Create(partitionKey, e.Id, new TSMatch
             {
                 TournamentId = contingent.TournamentId,
                 IsPOA = e.IsPOA,

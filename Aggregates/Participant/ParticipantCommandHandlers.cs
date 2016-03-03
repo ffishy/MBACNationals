@@ -42,8 +42,10 @@ namespace MBACNationals.Participant
                 Name = command.Name,
                 Gender = command.Gender,
                 IsDelegate = command.IsDelegate,
+                IsManager = command.IsManager,
                 YearsQualifying = command.YearsQualifying,
                 IsGuest = command.IsGuest,
+                Birthday = command.Birthday,
             };
 
             yield return new ParticipantAverageChanged
@@ -105,6 +107,18 @@ namespace MBACNationals.Participant
                     Id = command.Id
                 };
 
+            if (agg.IsManager != command.IsManager && command.IsManager)
+                yield return new ParticipantManagerStatusGranted
+                {
+                    Id = command.Id
+                };
+
+            if (agg.IsManager != command.IsManager && !command.IsManager)
+                yield return new ParticipantManagerStatusRevoked
+                {
+                    Id = command.Id
+                };
+
             if (agg.YearsQualifying != command.YearsQualifying)
                 yield return new ParticipantYearsQualifyingChanged
                 {
@@ -138,7 +152,11 @@ namespace MBACNationals.Participant
             if (agg.Package.ManitobaDinner != command.Package.ManitobaDinner
                 || agg.Package.ManitobaDance != command.Package.ManitobaDance
                 || agg.Package.FinalBanquet != command.Package.FinalBanquet
-                || agg.Package.Transportation != command.Package.Transportation)
+                || agg.Package.Transportation != command.Package.Transportation
+                || agg.Package.Option1 != command.Package.Option1
+                || agg.Package.Option2 != command.Package.Option2
+                || agg.Package.Option3 != command.Package.Option3
+                || agg.Package.Option4 != command.Package.Option4)
                 yield return new ParticipantGuestPackageChanged
                 {
                     Id = command.Id,
@@ -146,6 +164,17 @@ namespace MBACNationals.Participant
                     ManitobaDance = command.Package.ManitobaDance,
                     FinalBanquet = command.Package.FinalBanquet,
                     Transportation = command.Package.Transportation,
+                    Option1 = command.Package.Option1,
+                    Option2 = command.Package.Option2,
+                    Option3 = command.Package.Option3,
+                    Option4 = command.Package.Option4,
+                };
+
+            if (command.Birthday.HasValue && agg.Birthday != command.Birthday)
+                yield return new ParticipantBirthdayChanged
+                {
+                    Id = command.Id,
+                    Birthday = command.Birthday.Value,
                 };
         }
 

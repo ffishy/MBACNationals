@@ -1,26 +1,24 @@
 ﻿using Edument.CQRS;
 using Events.Contingent;
 using Events.Participant;
+using Events.Tournament;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace MBACNationals.ReadModels
 {
-    public class ParticipantProfileQueries : AzureReadModel,
+    public class ParticipantProfileQueries : BaseReadModel<ParticipantProfileQueries>,
         IParticipantProfileQueries,
+        ISubscribeTo<TournamentCreated>,
         ISubscribeTo<ContingentCreated>,
+        ISubscribeTo<ContingentAssignedToTournament>,
         ISubscribeTo<TeamCreated>,
         ISubscribeTo<ParticipantCreated>,
         ISubscribeTo<ParticipantRenamed>,
         ISubscribeTo<ParticipantProfileChanged>,
         ISubscribeTo<ParticipantAssignedToTeam>
     {
-        public ParticipantProfileQueries(string readModelFilePath)
-        {
-
-        }
-
         public class Participant
         {
             public Guid Id { get; internal set; }
@@ -48,14 +46,40 @@ namespace MBACNationals.ReadModels
             public string OtherAchievements { get; internal set; }
             public string Hobbies { get; internal set; }
         }
+        
+        private class TSTournament : Entity
+        {
+            public Guid Id
+            {
+                get { return Guid.Parse(RowKey); }
+                internal set { RowKey = value.ToString(); PartitionKey = value.ToString(); }
+            }
+            public string Year { get; set; }
+        }
 
         private class TSContingent : Entity
         {
+            public Guid Id
+            {
+                get { return Guid.Parse(RowKey); }
+                internal set { RowKey = value.ToString(); PartitionKey = value.ToString(); }
+            }
             public string Province { get; internal set; }
+            public Guid TournamentId { get; set; }
         }
 
         private class TSTeam : Entity
         {
+            public Guid Id
+            {
+                get { return Guid.Parse(RowKey); }
+                internal set { RowKey = value.ToString(); }
+            }
+            public Guid ContingentId
+            {
+                get { return Guid.Parse(PartitionKey); }
+                internal set { PartitionKey = value.ToString(); }
+            }
             public string Name { get; set; }
             public string Province { get; set; }
         }
@@ -85,11 +109,16 @@ namespace MBACNationals.ReadModels
             public int OpenYears { get; set; }
             public string OtherAchievements { get; set; }
             public string Hobbies { get; set; }
+            public Guid ContingentId { get; set; }
         }
 
-        public List<Participant> GetProfiles()
+        public List<Participant> GetProfiles(int year)
         {
-            var partipants = Query<TSParticipant>(x => x.HasProfile)
+            var tournament = Storage.Query<TSTournament>(x => x.Year == year.ToString()).FirstOrDefault();
+            var contingents = Storage.Query<TSContingent>(x => x.TournamentId == tournament.Id);
+
+            var partipants = Storage.Query<TSParticipant>(x => x.HasProfile)
+                .Where(x => contingents.Any(c => c.Id == x.ContingentId))
                 .Select(x => new Participant
                 {
                     Id = Guid.Parse(x.RowKey),
@@ -122,7 +151,7 @@ namespace MBACNationals.ReadModels
 
         public Participant GetProfile(Guid id)
         {
-            var participant = Read<TSParticipant>(id, id);
+            var participant = Storage.Read<TSParticipant>(id, id);
             return new Participant
                 {
                     Id = Guid.Parse(participant.RowKey),
@@ -152,33 +181,46 @@ namespace MBACNationals.ReadModels
                 }; 
         }
 
+        public void Handle(TournamentCreated e)
+        {
+            Storage.Create(e.Id, e.Id, new TSTournament
+            {
+                Year = e.Year
+            });
+        }
+
         public void Handle(ContingentCreated e)
         {
-            Create(e.Id, e.Id, new TSContingent { Province = e.Province });
+            Storage.Create(e.Id, e.Id, new TSContingent { Province = e.Province });
+        }
+
+        public void Handle(ContingentAssignedToTournament e)
+        {
+            Storage.Update<TSContingent>(e.Id, e.Id, x => x.TournamentId = e.TournamentId);
         }
 
         public void Handle(TeamCreated e)
         {
-            var contingent = Read<TSContingent>(e.Id, e.Id);
+            var contingent = Storage.Read<TSContingent>(e.Id, e.Id);
             if (contingent == null)
                 return;
 
-            Create(e.Id, e.TeamId, new TSTeam { Name = e.Name, Province = contingent.Province });
+            Storage.Create(e.Id, e.TeamId, new TSTeam { Name = e.Name, Province = contingent.Province });
         }
 
         public void Handle(ParticipantCreated e)
         {
-            Create(e.Id, e.Id, new TSParticipant { Name = e.Name });
+            Storage.Create(e.Id, e.Id, new TSParticipant { Name = e.Name });
         }
 
         public void Handle(ParticipantRenamed e)
         {
-            Update<TSParticipant>(e.Id, e.Id, x => x.Name = e.Name);
+            Storage.Update<TSParticipant>(e.Id, e.Id, x => x.Name = e.Name);
         }
 
         public void Handle(ParticipantProfileChanged e)
         {
-            Update<TSParticipant>(e.Id, e.Id, x =>
+            Storage.Update<TSParticipant>(e.Id, e.Id, x =>
             {
                 x.HasProfile = true;
                 x.Age = e.Age;
@@ -205,14 +247,15 @@ namespace MBACNationals.ReadModels
 
         public void Handle(ParticipantAssignedToTeam e)
         {
-            var team = Read<TSTeam>(e.TeamId);
+            var team = Storage.Read<TSTeam>(e.TeamId);
             if (team == null)
                 return;
 
-            Update<TSParticipant>(e.Id, e.Id, x =>
+            Storage.Update<TSParticipant>(e.Id, e.Id, x =>
             {
                 x.Team = team.Name;
                 x.Province = team.Province;
+                x.ContingentId = team.ContingentId;
             });
         }
     }

@@ -45,15 +45,20 @@ namespace WebFrontend
 
             bundles.Add(new ScriptBundle("~/bundles/angular").Include(
                         "~/Scripts/angular.*",
-                        "~/Scripts/ui-bootstrap-tpls-0.9.0.js"));
+                        "~/Scripts/angular-ui-router.js",
+                        "~/Scripts/ui-bootstrap-tpls-0.9.0.js",
+					    "~/Scripts/ng-file-upload-shim.min.js",
+                        "~/Scripts/ng-file-upload.min.js",
+                        "~/Scripts/moment.min.js",
+                        "~/Scripts/angular-moment.min.js"));
 
             bundles.Add(new ScriptBundle("~/bundles/app").Include(
-                        "~/App/Filters/filter.*",
-                        "~/App/app.js",
-                        "~/App/Controllers/controller.*",
-                        "~/App/Directives/directive.*",
-                        "~/App/Factories/factory.*",
-                        "~/App/Services/service.*"));
+                        "~/AdminApp/Filters/filter.*",
+                        "~/AdminApp/app.js",
+                        "~/AdminApp/Controllers/controller.*",
+                        "~/AdminApp/Directives/directive.*",
+                        "~/AdminApp/Factories/factory.*",
+                        "~/AdminApp/Services/service.*"));
         }
     }
 }

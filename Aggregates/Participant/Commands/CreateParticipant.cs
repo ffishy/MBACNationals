@@ -8,6 +8,7 @@ namespace MBACNationals.Participant.Commands
         public string Name { get; set; }
         public string Gender { get; set; }
         public bool IsDelegate { get; set; }
+        public bool IsManager { get; set; }
         public int YearsQualifying { get; set; }
         public int LeagueGames { get; set; }
         public int LeaguePinfall { get; set; }
@@ -16,6 +17,7 @@ namespace MBACNationals.Participant.Commands
         public bool IsGuest { get; set; }
         public PackageInformation Package { get; set; }
         public string ShirtSize { get; set; }
+        public DateTime? Birthday { get; set; }
 
         public class PackageInformation
         {
@@ -23,6 +25,10 @@ namespace MBACNationals.Participant.Commands
             public bool ManitobaDance { get; set; }
             public bool FinalBanquet { get; set; }
             public bool Transportation { get; set; }
+            public bool Option1 { get; set; }
+            public bool Option2 { get; set; }
+            public bool Option3 { get; set; }
+            public bool Option4 { get; set; }
         }
     }
 }

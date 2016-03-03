@@ -103,27 +103,49 @@ namespace WebFrontend.Controllers
         [OutputCache(NoStore = true, Duration = 0, VaryByParam = "None")]
         public JsonResult TravelPlans(string year, string province)
         {
-            var travelPlans = Domain.ContingentTravelPlanQueries.GetTravelPlans(year, province);
-
-            return Json(travelPlans, JsonRequestBehavior.AllowGet);
+            if (string.IsNullOrWhiteSpace(province))
+            {
+                var travelPlans = Domain.ContingentTravelPlanQueries.GetAllTravelPlans(year);
+                return Json(travelPlans, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                var travelPlans = Domain.ContingentTravelPlanQueries.GetTravelPlans(year, province);
+                return Json(travelPlans, JsonRequestBehavior.AllowGet);
+            }
         }
 
         [HttpGet]
         [OutputCache(NoStore = true, Duration = 0, VaryByParam = "None")]
         public JsonResult Rooms(string year, string province)
         {
-            var rooms = Domain.ContingentTravelPlanQueries.GetRooms(year, province);
-
-            return Json(rooms, JsonRequestBehavior.AllowGet);
+            if (string.IsNullOrWhiteSpace(province))
+            {
+                var rooms = Domain.ContingentTravelPlanQueries.GetAllRooms(year);
+                return Json(rooms, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                var rooms = Domain.ContingentTravelPlanQueries.GetRooms(year, province);
+                return Json(rooms, JsonRequestBehavior.AllowGet);
+            }
         }
 
         [HttpGet]
         [OutputCache(NoStore = true, Duration = 0, VaryByParam = "None")]
         public JsonResult PracticePlan(string year, string province)
         {
-            var rooms = Domain.ContingentPracticePlanQueries.GetSchedule(year, province);
 
-            return Json(rooms, JsonRequestBehavior.AllowGet);
+            if (string.IsNullOrWhiteSpace(province))
+            {
+                var rooms = Domain.ContingentPracticePlanQueries.GetAllSchedules(year);
+                return Json(rooms, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                var rooms = Domain.ContingentPracticePlanQueries.GetSchedule(year, province);
+                return Json(rooms, JsonRequestBehavior.AllowGet);
+            }
         }
 
         [HttpGet]

@@ -2,8 +2,11 @@
     font-size: .85em;
     font-family: "Segoe UI", Verdana, Helvetica, Sans-Serif;
     color: #232323;
-	background-image:url(/Setup/Content/Images/header_bkg.jpg);
-	background-repeat:repeat-x;
+	background:url(/Content/Images/background.jpg) no-repeat center center fixed; 
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
     background-color: #fff;
 }
 
@@ -18,6 +21,12 @@ header, footer, nav, section {
     display: block;
 }
 
+#loginForm
+{
+    max-width: 330px;
+    padding: 15px;
+    margin: 0 auto;
+}
 
 /* Styles for basic forms
 -----------------------------------------------------------*/
@@ -128,4 +137,30 @@ div.noHotelRoom {
 
 .strike {
   text-decoration: line-through;
+}
+
+.occupant {
+    display: block;
+    background-color: rgba(255,255,255,0);
+}
+
+a.navbar-brand {
+    padding: 0px;
+}
+
+div.game {
+    text-align: center;
+    margin-right: 0px;
+    margin-left: 0px;
+}
+div.game .frame {
+    border-collapse: collapse;
+    border: 1px solid black;
+}
+div.game .frame .number {
+}
+div.game .frame .shots {
+    border: 1px solid black;
+}
+div.game .frame .shots .shot {
 }
