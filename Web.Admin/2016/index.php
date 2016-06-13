@@ -26,16 +26,20 @@ include 'header.php';
         	<div class="row">
         		<div class="col-md-6">
           <h2>News</h2>
-          <p>Stay Tuned for updates!</p>
-          <!--<p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>-->
-       			</div>       		
-        		<div class="col-md-6">
-          <!--<h2>Forms</h2>
-          <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
-          <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>-->
+          <p>A few changes have been made to the schedule, we will no be going to the Cloverdale Fairgrounds on Canada Day.</p>
           <h2>Schedule</h2>
           <div class="message"></div>
           <p><a class="btn btn-default" href="schedule.php" role="button">Full Schedule &raquo;</a></p>
+          <!--<p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>-->
+       			</div>       		
+        		<div class="col-md-6">
+          <h2>High Scores</h2>
+          <p>Coming Soon</p>
+
+          <!--<h2>Forms</h2>
+          <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
+          <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>-->
+
        			</div>
        		</div>	
         </div>
@@ -48,9 +52,6 @@ include 'header.php';
           <div class="fb-page" style="margin-bottom:15px;" data-href="https://www.facebook.com/MBAofCanada/" data-small-header="false" data-adapt-container-width="true" data-hide-cover="false" data-show-facepile="false"><div class="fb-xfbml-parse-ignore"><blockquote cite="https://www.facebook.com/MBAofCanada/"><a href="https://www.facebook.com/MBAofCanada/">Master Bowlers Association of Canada</a></blockquote></div></div>
 			
           <div><a class="twitter-timeline" href="https://twitter.com/MBANationals" data-widget-id="702222211382259713">Tweets by @MBANationals</a><script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script></div>
-
-          <!--<h2>High Scores</h2>
-          <p>Coming Soon</p>-->
 
         </div>
       </div>
